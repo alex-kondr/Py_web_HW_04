@@ -1,8 +1,9 @@
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from pathlib import Path
 from threading import Thread
-import json, logging, socket, urllib
+from pathlib import Path
+import json, logging, os, socket, urllib
+from time import sleep
 
 
 SERVER_ADDRESS = ("0.0.0.0", 3000)
@@ -16,9 +17,10 @@ class SocketUDP:
     def __init__(self, ip_port: tuple):
         self.ip_port = ip_port
     
-    def run_server(self, save_to_file: json):
+    def run_server(self, path: Path):
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.bind(self.ip_port)
+        
         
         try:
             while True:
@@ -28,15 +30,20 @@ class SocketUDP:
                 data_dict = {key: value for key, value in [el.split("=") for el in data_parse.split("&")]}
                 data_dict = {str(datetime.now()): data_dict}
                 
-                if Path(save_to_file).exists():                
-                    with open(save_to_file, "r") as fd:
-                        json_dict = json.load(fd)
+                if not path.joinpath("storage").exists():
+                    os.mkdir(path.joinpath("storage"))
+                
+                file = path.joinpath("storage/data.json")
+                
+                if file.exists():                
+                    with open(file, "r") as fd:
+                        json_dict = json.load(fd)                        
                 else:
                     json_dict = {}
 
                 json_dict.update(data_dict)
                 
-                with open(save_to_file, "w") as fd:
+                with open(file, "w") as fd:
                     json.dump(json_dict, fd)
                 
         except KeyboardInterrupt:
@@ -82,11 +89,9 @@ class HtttpHandler(BaseHTTPRequestHandler):
         self.end_headers()
         
         with open(filename, "rb") as fd:
-            self.wfile.write(fd.read())
-            
+            self.wfile.write(fd.read())            
 
-            
-            
+                        
 def run_http_server(server=HTTPServer, handler=HtttpHandler):
     http = server(SERVER_ADDRESS, handler)
     
@@ -108,7 +113,7 @@ if __name__ == "__main__":
     
     find_html_files(HTML_PATH)    
        
-    sock_server = Thread(target=socket_server.run_server, args=(HTML_PATH.joinpath("storage/data.json"), ), daemon=True)
+    sock_server = Thread(target=socket_server.run_server, args=(HTML_PATH, ), daemon=True)
     sock_server.start()
     
     run_http_server()
