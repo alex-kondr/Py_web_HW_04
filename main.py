@@ -1,14 +1,12 @@
 from datetime import datetime
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import json
 from pathlib import Path
-import socket
 from threading import Thread
-import urllib
+import json, logging, socket, urllib
 
 
 SERVER_ADDRESS = ("0.0.0.0", 3000)
-SOCKET_ADDRESS = ("0.0.0.0", 5000)
+SOCKET_ADDRESS = ("127.0.0.1", 5000)
 HTML_PATH = Path("front-init")
 LIST_FILES_HTML = []
 
@@ -24,14 +22,17 @@ class SocketUDP:
         
         try:
             while True:
-                data, address = sock.recvfrom(1024)            
-                # print(f"Received {data.decode()=} from: {address=}")
+                data, address = sock.recvfrom(1024)
+                logging.debug(f"Received {data.decode()=} from: {address=}")
                 data_parse = urllib.parse.unquote_plus(data.decode())
                 data_dict = {key: value for key, value in [el.split("=") for el in data_parse.split("&")]}
                 data_dict = {str(datetime.now()): data_dict}
                 
-                with open(save_to_file, "r") as fd:
-                    json_dict = json.load(fd)            
+                if Path(save_to_file).exists():                
+                    with open(save_to_file, "r") as fd:
+                        json_dict = json.load(fd)
+                else:
+                    json_dict = {}
 
                 json_dict.update(data_dict)
                 
@@ -103,6 +104,7 @@ def find_html_files(html_path):
             
         
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG, format="%(message)s")
     
     find_html_files(HTML_PATH)    
        
